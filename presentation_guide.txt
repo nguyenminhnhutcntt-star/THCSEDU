@@ -1,0 +1,70 @@
+================================================================================
+     TÀI LIỆU THUYẾT TRÌNH & HƯỚNG DẪN HIỂU SÂU DỰ ÁN THCSEDU (EDUMANAGE)
+================================================================================
+
+1. GIỚI THIỆU TỔNG QUAN
+--------------------------------------------------------------------------------
+- Tên dự án: THCSEDU (EduManage) - Sổ Liên Lạc Điện Tử & Quản Lý Giáo Dục THCS.
+- Mục tiêu: Xây dựng ứng dụng di động Android toàn diện phục vụ 2 nhóm người dùng chính: Giáo viên (quản lý lớp học, điểm số, chuyên cần, nề nếp, sổ đầu bài, duyệt đơn) và Phụ huynh/Học sinh (tra cứu điểm, thời khóa biểu, học phí, thực đơn, thẻ học sinh, xin nghỉ học, chat 1-1 và xuất phiếu liên lạc PDF).
+- Kiến trúc áp dụng: Clean Architecture + MVVM kết hợp Offline-First (hoạt động mượt mà ngay cả khi không có mạng nhờ Room Database).
+
+2. CẤU TRÚC THƯ MỤC VÀ NHIỆM VỤ CỦA TỪNG THÀNH PHẦN
+--------------------------------------------------------------------------------
+Dự án được tổ chức theo các package rõ ràng:
+
+A. `com.example.thcsedu.data` (Tầng Dữ Liệu)
+   - `local/entity/`: Các bảng Room Database (SQLite) như `HocSinhEntity`, `BangDiemEntity`, `DiemDanhEntity`, `ThongBaoEntity`, `HoaDonHocPhiEntity`, `TinNhanEntity`, `ViPhamEntity`, v.v.
+   - `local/dao/`: Các Data Access Object (DAO) thực hiện truy vấn SQL (`BangDiemDao`, `HocSinhDao`, `ThongBaoDao`, v.v.).
+   - `local/AppDatabaseCallback`: Cơ chế tự động seeding (nạp dữ liệu mẫu) khi ứng dụng chạy lần đầu.
+   - `preferences/`: Jetpack Preferences DataStore quản lý phiên đăng nhập (`token`, `role` của Teacher hay Parent).
+   - `repository/`: Các lớp cài đặt (`RepositoryImpl`) thực thi các interface từ tầng Domain, kết hợp Room DB và Remote API giả lập.
+
+B. `com.example.thcsedu.domain` (Tầng Nghiệp Vụ)
+   - `repository/`: Định nghĩa các Interface cung cấp dữ liệu cho tầng UI/ViewModel.
+   - `usecase/`: Chứa business logic thuần túy không phụ thuộc Android Framework (ví dụ: `TinhDiemVaXepLoaiUseCase` tính điểm trung bình môn, xếp loại học lực).
+
+C. `com.example.thcsedu.ui` (Tầng Giao Diện & ViewModel)
+   - `auth/`: Màn hình Đăng nhập (`LoginScreen`), Quên mật khẩu (`QuenMatKhauScreen`) và `AuthViewModel`.
+   - `dashboard/`: Giao diện quản trị dành cho giáo viên (`TeacherDashboard`).
+   - `parent/`: Sổ liên lạc và trang chủ dành cho phụ huynh (`ParentDashboardScreen`).
+   - `sodiem/`: Quản lý sổ điểm, khóa sổ, lịch sử kiểm toán (`SoDiemScreen`, `SoDiemViewModel`).
+   - `diemdanh/`, `donnghi/`, `hocphi/`, `nepnep/`, `sodaubai/`, `thehocsinh/`, `thongbao/`, `thucdon/`, `timetable/`, `qrcode/`, `chat/`: Các phân hệ nghiệp vụ chi tiết.
+   - `navigation/`: Định nghĩa biểu đồ điều hướng (`AppNavGraph`, `Screen`).
+   - `util/`: Các tiện ích quan trọng:
+     + `PdfReportHelper.kt`: Dựng bản in phiếu liên lạc chuẩn A4 (`PdfDocument`, `Canvas`, vẽ logo `ic_app_logo.png`, bảng điểm, chữ ký).
+     + `PdfExporter.kt`: Lưu file vào cache và tạo Intent chia sẻ/mở file PDF qua `FileProvider`.
+     + `QrCodeUtil.kt`: Tạo mã QR động cho thẻ học sinh.
+
+3. LUỒNG LOGIC HOẠT ĐỘNG (DATA & CONTROL FLOW)
+--------------------------------------------------------------------------------
+A. Luồng Khởi Động & Xác Thực (Authentication Flow)
+   - App khởi chạy -> `MyVnEduApp` khởi tạo Room Database. `AppDatabaseCallback` kiểm tra và nạp sẵn dữ liệu mẫu (HS01 - Nguyễn Văn An, lớp 9A1, điểm số, học phí...).
+   - `AppNavGraph` đọc `UserPreferencesRepository` (`tokenFlow`, `roleFlow`).
+   - Nếu chưa đăng nhập -> chuyển đến `LoginScreen`.
+   - Nếu là Giáo viên (`TEACHER`) -> vào `TeacherDashboard`.
+   - Nếu là Phụ huynh (`PARENT`) -> vào `ParentDashboardScreen`.
+
+B. Luồng Nghiệp Vụ Nhập Điểm & Tính Điểm Tự Động (Grading Flow)
+   - Giáo viên chọn Lớp, Môn học, Học kỳ trên `SoDiemScreen`.
+   - `SoDiemViewModel` gọi `repository.getHocSinhByLop` và `repository.getBangDiem` (lắng nghe qua Kotlin `Flow` và `combine`).
+   - Dữ liệu trả về qua UI State (`SoDiemUiState`). Khi giáo viên nhập điểm TX, Giữa kỳ, Cuối kỳ, `TinhDiemVaXepLoaiUseCase` tự động tính điểm trung bình môn theo công thức quy chế.
+   - Khi bấm Lưu (`saveBangDiem`), dữ liệu được đẩy xuống Room DB. Nếu khóa sổ (`isGradeLocked`), mọi thao tác chỉnh sửa bị khóa và các thay đổi trước đó phải qua nhật ký kiểm toán (`LichSuSuaDiemEntity`).
+
+C. Luồng Xuất Phiếu Liên Lạc PDF (PDF Report Generator Flow)
+   - Phụ huynh (trên `ParentDashboardScreen`) hoặc Giáo viên (trên `SoDiemScreen`) nhấn nút **"Xuất Phiếu PDF"** (`Icons.Default.PictureAsPdf`).
+   - Hiển thị hiệu ứng tải (`CircularProgressIndicator`).
+   - `PdfReportHelper.generateGradeReportPdf(context, data)` khởi tạo `PdfDocument`, tạo trang A4 (595x842 pts), vẽ logo trường từ `R.drawable.ic_app_logo`, vẽ thông tin học sinh, bảng điểm lưới, phần tổng kết và chữ ký phụ huynh/giáo viên.
+   - `PdfExporter.exportAndSavePdf` lưu file `.pdf` vào `context.cacheDir/reports`.
+   - Ứng dụng hiển thị thông báo `Snackbar` với nút hành động **"Mở file"**.
+   - Người dùng nhấp vào Snackbar hoặc app tự động mở file qua `FileProvider` (`Intent.ACTION_VIEW`) bằng bất kỳ phần mềm đọc PDF nào trên thiết bị.
+
+4. CÂU HỎI THƯỜNG GẶP KHI THUYẾT TRÌNH (Q&A PREPARATION)
+--------------------------------------------------------------------------------
+Q1: Tại sao chọn Room Database (Offline-First) thay vì gọi API trực tiếp?
+A: Giúp ứng dụng hoạt động mượt mà, không giật lag, xem điểm và thông tin ngay cả khi mất kết nối mạng. Dữ liệu luôn được đồng bộ sẵn cục bộ.
+
+Q2: Thuật toán tạo PDF hoạt động thế nào trong Android?
+A: Sử dụng native `android.graphics.pdf.PdfDocument` kết hợp `Canvas` để vẽ trực tiếp văn bản, hình chữ nhật, đường lưới bảng và chèn Bitmap logo (`ic_app_logo.png`) theo đúng tọa độ chuẩn A4 (72 DPI).
+
+Q3: Làm sao để kiểm thử ứng dụng khi mới cài đặt?
+A: Ứng dụng tự động seeding dữ liệu mẫu qua `AppDatabaseCallback`. Chỉ cần chọn nhanh vai trò Teacher hoặc Parent trên màn hình Login là có sẵn toàn bộ dữ liệu (lớp học, điểm số, học phí, thông báo) để demo.
