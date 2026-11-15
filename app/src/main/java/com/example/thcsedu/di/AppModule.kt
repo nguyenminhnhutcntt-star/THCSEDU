@@ -123,6 +123,30 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideTaiKhoanDao(database: AppDatabase): TaiKhoanDao {
+        return database.taiKhoanDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideThoiKhoaBieuDao(database: AppDatabase): ThoiKhoaBieuDao {
+        return database.thoiKhoaBieuDao()
+    }
+
+    @Provides
+    @Singleton
+    fun providePhanCongGiaoVienDao(database: AppDatabase): PhanCongGiaoVienDao {
+        return database.phanCongGiaoVienDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideCheckInCongTruongDao(database: AppDatabase): CheckInCongTruongDao {
+        return database.checkInCongTruongDao()
+    }
+
+    @Provides
+    @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl("https://api.edumanage.example.com/")

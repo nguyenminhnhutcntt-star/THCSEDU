@@ -2,9 +2,9 @@ package com.example.thcsedu.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.thcsedu.data.local.dao.TaiKhoanDao
 import com.example.thcsedu.data.preferences.UserPreferencesRepository
-import com.example.thcsedu.data.remote.VnEduApiService
-import com.example.thcsedu.data.remote.model.LoginRequest
+import com.example.thcsedu.ui.util.PasswordUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,22 +14,23 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class UserRole(val value: String, val displayName: String) {
-    TEACHER("TEACHER", "Teacher"),
-    PARENT("PARENT", "Parent")
+    TEACHER("TEACHER", "Giáo viên"),
+    PARENT("PARENT", "Phụ huynh"),
+    ADMIN("ADMIN", "Quản trị viên")
 }
 
 data class AuthUiState(
     val username: String = "",
     val password: String = "",
-    val selectedRole: UserRole = UserRole.TEACHER,
+    val authenticatedRole: UserRole? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val userPreferencesRepository: UserPreferencesRepository,
-    private val apiService: VnEduApiService
+    private val taiKhoanDao: TaiKhoanDao,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -43,14 +44,17 @@ class AuthViewModel @Inject constructor(
         _uiState.update { it.copy(password = password, errorMessage = null) }
     }
 
-    fun onRoleChanged(role: UserRole) {
-        _uiState.update { it.copy(selectedRole = role, errorMessage = null) }
+    fun quickFill(username: String, pass: String) {
+        _uiState.update { it.copy(username = username, password = pass, errorMessage = null) }
     }
 
-    fun login(onSuccess: () -> Unit = {}) {
+    fun login(onSuccess: (UserRole) -> Unit = {}) {
         val currentState = _uiState.value
-        if (currentState.username.isBlank() || currentState.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Username and password cannot be empty") }
+        val username = currentState.username.trim()
+        val password = currentState.password.trim()
+
+        if (username.isBlank() || password.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu") }
             return
         }
 
@@ -58,28 +62,59 @@ class AuthViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val token = try {
-                    val response = apiService.login(
-                        LoginRequest(
-                            username = currentState.username,
-                            password = currentState.password,
-                            role = currentState.selectedRole.value
+                val account = taiKhoanDao.getTaiKhoanByUsername(username)
+                if (account == null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Tài khoản không tồn tại trên hệ thống"
                         )
-                    )
-                    response.token
-                } catch (e: Exception) {
-                    // Fallback simulation for offline/demo mode when backend is unreachable
-                    "jwt_token_${currentState.username}_${currentState.selectedRole.value}"
+                    }
+                    return@launch
                 }
 
-                userPreferencesRepository.saveAuthData(token, currentState.selectedRole.value)
-                _uiState.update { it.copy(isLoading = false) }
-                onSuccess()
+                // Kiểm tra băm mật khẩu
+                val isPasswordCorrect = PasswordUtil.verifyPassword(password, account.matKhauHash)
+                if (!isPasswordCorrect) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Mật khẩu không chính xác"
+                        )
+                    }
+                    return@launch
+                }
+
+                // Vai trò được xác định từ tài khoản trong CSDL
+                val userRole = when (account.vaiTro.uppercase()) {
+                    "PARENT" -> UserRole.PARENT
+                    "ADMIN" -> UserRole.ADMIN
+                    else -> UserRole.TEACHER
+                }
+
+                val token = "token_${account.tenDangNhap}_${account.vaiTro}_${System.currentTimeMillis()}"
+                userPreferencesRepository.saveAuthData(
+                    token = token,
+                    role = userRole.value,
+                    username = account.tenDangNhap,
+                    maDinhDanh = account.maDinhDanh,
+                    hoTen = account.hoTen
+                )
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        authenticatedRole = userRole,
+                        errorMessage = null
+                    )
+                }
+
+                onSuccess(userRole)
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.localizedMessage ?: "Login failed"
+                        errorMessage = e.localizedMessage ?: "Đăng nhập thất bại"
                     )
                 }
             }
@@ -89,6 +124,7 @@ class AuthViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             userPreferencesRepository.clearAuthData()
+            _uiState.update { AuthUiState() }
         }
     }
 }

@@ -42,6 +42,10 @@ import com.example.thcsedu.ui.thucdon.ThucDonScreen
 import com.example.thcsedu.ui.thucdon.ThucDonViewModel
 import com.example.thcsedu.ui.timetable.TimetableScreen
 import com.example.thcsedu.ui.timetable.TimetableViewModel
+import com.example.thcsedu.ui.quanly.QuanLyTruongHocScreen
+import com.example.thcsedu.ui.quanly.QuanLyTruongHocViewModel
+import com.example.thcsedu.ui.thongke.BaoCaoThongKeScreen
+import com.example.thcsedu.ui.thongke.BaoCaoThongKeViewModel
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -61,6 +65,8 @@ sealed class Screen(val route: String) {
     object TheHocSinh : Screen("the_hoc_sinh")
     object QuetMaQr : Screen("quet_ma_qr")
     object QuenMatKhau : Screen("quen_mat_khau")
+    object QuanLyTruongHoc : Screen("quan_ly_truong_hoc")
+    object BaoCaoThongKe : Screen("bao_cao_thong_ke")
 }
 
 @Composable
@@ -86,11 +92,10 @@ fun AppNavGraph(
             val authViewModel: AuthViewModel = hiltViewModel()
             LoginScreen(
                 viewModel = authViewModel,
-                onLoginSuccess = {
-                    val targetRoute = if (authViewModel.uiState.value.selectedRole == UserRole.TEACHER) {
-                        Screen.TeacherDashboard.route
-                    } else {
-                        Screen.ParentDashboard.route
+                onLoginSuccess = { userRole ->
+                    val targetRoute = when (userRole) {
+                        UserRole.TEACHER, UserRole.ADMIN -> Screen.TeacherDashboard.route
+                        UserRole.PARENT -> Screen.ParentDashboard.route
                     }
                     navController.navigate(targetRoute) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -115,6 +120,8 @@ fun AppNavGraph(
                 onNavigateToThongBao = { navController.navigate(Screen.ThongBao.route) },
                 onNavigateToChat = { navController.navigate(Screen.Chat.route) },
                 onNavigateToQuetMaQr = { navController.navigate(Screen.QuetMaQr.route) },
+                onNavigateToQuanLyTruongHoc = { navController.navigate(Screen.QuanLyTruongHoc.route) },
+                onNavigateToBaoCaoThongKe = { navController.navigate(Screen.BaoCaoThongKe.route) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Login.route) {
@@ -134,6 +141,7 @@ fun AppNavGraph(
                 onNavigateToChat = { navController.navigate(Screen.Chat.route) },
                 onNavigateToThucDon = { navController.navigate(Screen.ThucDon.route) },
                 onNavigateToTheHocSinh = { navController.navigate(Screen.TheHocSinh.route) },
+                onNavigateToTimetable = { navController.navigate(Screen.Timetable.route) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Screen.Login.route) {
@@ -247,6 +255,20 @@ fun AppNavGraph(
                 onBackToLogin = {
                     navController.popBackStack()
                 }
+            )
+        }
+        composable(Screen.QuanLyTruongHoc.route) {
+            val quanLyViewModel: QuanLyTruongHocViewModel = hiltViewModel()
+            QuanLyTruongHocScreen(
+                viewModel = quanLyViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.BaoCaoThongKe.route) {
+            val baoCaoViewModel: BaoCaoThongKeViewModel = hiltViewModel()
+            BaoCaoThongKeScreen(
+                viewModel = baoCaoViewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
     }

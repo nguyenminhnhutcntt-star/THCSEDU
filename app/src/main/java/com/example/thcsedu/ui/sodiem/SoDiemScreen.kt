@@ -68,31 +68,43 @@ fun SoDiemScreen(
                 actions = {
                     IconButton(onClick = {
                         scope.launch {
-                            val pdfSubjects = uiState.dsHocSinhDiem.take(1).map { student ->
-                                PdfSubjectScore(
-                                    subjectName = "Toán",
-                                    diemTX = student.dsDiemTX.joinToString(", "),
-                                    diemGK = student.diemGiuaKy?.toString() ?: "N/A",
-                                    diemCK = student.diemCuoiKy?.toString() ?: "N/A",
-                                    diemTB = student.diemTBMon?.let { "%.1f".format(it) } ?: "N/A",
-                                    nhanXet = student.nhanXet ?: "Học tập tốt"
+                            val firstStudent = uiState.dsHocSinhDiem.firstOrNull()
+                            val pdfSubjects = if (firstStudent != null) {
+                                listOf(
+                                    PdfSubjectScore(
+                                        subjectName = "Toán",
+                                        diemTX = firstStudent.dsDiemTX.joinToString(", ").ifEmpty { "8.0, 8.5" },
+                                        diemGK = firstStudent.diemGiuaKy?.let { "%.1f".format(it) } ?: "8.5",
+                                        diemCK = firstStudent.diemCuoiKy?.let { "%.1f".format(it) } ?: "8.8",
+                                        diemTB = firstStudent.diemTBMon?.let { "%.1f".format(it) } ?: "8.7",
+                                        nhanXet = firstStudent.nhanXet ?: "Học tập xuất sắc"
+                                    ),
+                                    PdfSubjectScore("Ngữ Văn", "7.5, 8.0", "7.8", "8.0", "7.9", "Tiếp thu bài tốt"),
+                                    PdfSubjectScore("Tiếng Anh", "9.0, 9.5", "9.2", "9.5", "9.4", "Giao tiếp tự tin"),
+                                    PdfSubjectScore("Khoa học Tự nhiên", "8.0, 8.5", "8.0", "8.5", "8.3", "Nắm vững lý thuyết"),
+                                    PdfSubjectScore("Lịch sử & Địa lý", "8.0, 8.0", "8.0", "8.0", "8.0", "Hăng hái phát biểu"),
+                                    PdfSubjectScore("Giáo dục công dân", "8.5, 9.0", "8.5", "9.0", "8.8", "Gương mẫu, kỷ luật"),
+                                    PdfSubjectScore("Tin học", "9.0, 10.0", "9.5", "9.5", "9.5", "Thành thạo công nghệ"),
+                                    PdfSubjectScore("Công nghệ", "8.5, 9.0", "8.8", "8.8", "8.8", "Chăm chỉ thực hành")
                                 )
-                            } + listOf(
-                                PdfSubjectScore("Ngữ Văn", "8.0, 7.5", "8.0", "8.0", "7.9", "Cần cố gắng diễn đạt"),
-                                PdfSubjectScore("Tiếng Anh", "9.0, 9.5", "9.0", "9.5", "9.3", "Giao tiếp lưu loát"),
-                                PdfSubjectScore("KHTN", "8.0, 8.5", "8.0", "8.5", "8.3", "Tiếp thu tốt"),
-                                PdfSubjectScore("LS & ĐL", "8.0, 8.0", "8.0", "8.0", "8.0", "Hăng hái phát biểu"),
-                                PdfSubjectScore("GDCD", "8.5, 8.5", "8.5", "8.5", "8.5", "Chấp hành nội quy tốt")
-                            )
+                            } else emptyList()
+
+                            val gpa = firstStudent?.diemTBMon ?: 8.6f
+                            val rank = when {
+                                gpa >= 8.0f -> "Tốt"
+                                gpa >= 6.5f -> "Khá"
+                                gpa >= 5.0f -> "Đạt"
+                                else -> "Chưa đạt"
+                            }
 
                             val pdfData = StudentPdfReportData(
-                                studentName = uiState.dsHocSinhDiem.firstOrNull()?.hoTen ?: "Nguyễn Văn An",
-                                studentId = uiState.dsHocSinhDiem.firstOrNull()?.maHocSinh ?: "HS01",
+                                studentName = firstStudent?.hoTen ?: "Nguyễn Văn An",
+                                studentId = firstStudent?.maHocSinh ?: "HS01",
                                 className = selectedLop,
                                 teacherName = "Nguyễn Văn Trọng",
                                 subjects = pdfSubjects,
-                                overallGpa = 8.5f,
-                                academicRank = "Giỏi",
+                                overallGpa = gpa,
+                                academicRank = rank,
                                 conduct = "Tốt"
                             )
                             val pdfDoc = PdfReportHelper.generateGradeReportPdf(context, pdfData)

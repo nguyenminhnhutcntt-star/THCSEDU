@@ -76,6 +76,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.logging.interceptor)
     implementation(libs.material)
+    implementation("com.google.zxing:core:3.5.3")
     implementation(libs.moshi.kotlin)
     implementation(libs.okhttp)
     implementation(libs.play.services.location)

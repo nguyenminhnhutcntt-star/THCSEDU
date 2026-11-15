@@ -43,6 +43,8 @@ import com.example.thcsedu.ui.util.PdfReportHelper
 import com.example.thcsedu.ui.util.PdfSubjectScore
 import com.example.thcsedu.ui.util.StudentPdfReportData
 
+import androidx.compose.material.icons.filled.DateRange
+
 data class ParentFeatureItem(
     val title: String,
     val description: String,
@@ -61,6 +63,7 @@ fun ParentDashboardScreen(
     onNavigateToChat: () -> Unit,
     onNavigateToThucDon: () -> Unit,
     onNavigateToTheHocSinh: () -> Unit,
+    onNavigateToTimetable: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -70,6 +73,13 @@ fun ParentDashboardScreen(
     val scope = rememberCoroutineScope()
 
     val features = listOf(
+        ParentFeatureItem(
+            title = "Thời Khóa Biểu",
+            description = "Lịch học của con",
+            icon = Icons.Default.DateRange,
+            colors = listOf(Color(0xFF6366F1), Color(0xFF818CF8)),
+            onClick = onNavigateToTimetable
+        ),
         ParentFeatureItem(
             title = "Thẻ Học Sinh",
             description = "Thẻ điện tử & Mã QR",
@@ -104,13 +114,6 @@ fun ParentDashboardScreen(
             icon = Icons.Default.Restaurant,
             colors = listOf(Color(0xFFF59E0B), Color(0xFFFBBF24)),
             onClick = onNavigateToThucDon
-        ),
-        ParentFeatureItem(
-            title = "Thông Báo",
-            description = "Tin tức từ nhà trường",
-            icon = Icons.Default.Notifications,
-            colors = listOf(Color(0xFF8B5CF6), Color(0xFFA78BFA)),
-            onClick = onNavigateToThongBao
         )
     )
 
@@ -185,10 +188,52 @@ fun ParentDashboardScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "${uiState.className} • Hạnh kiểm: ${uiState.conduct}",
+                                    text = "Mã HS: ${uiState.studentId} • Lớp: ${uiState.className}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Thông tư 22 Academic Rank Badge
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = when (uiState.academicRank) {
+                                            "Tốt" -> Color(0xFFE8F5E9)
+                                            "Khá" -> Color(0xFFE3F2FD)
+                                            "Đạt" -> Color(0xFFFFF8E1)
+                                            else -> Color(0xFFFFEBEE)
+                                        }
+                                    ) {
+                                        Text(
+                                            text = "Học lực: ${uiState.academicRank} (TT 22)",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = when (uiState.academicRank) {
+                                                "Tốt" -> Color(0xFF2E7D32)
+                                                "Khá" -> Color(0xFF1565C0)
+                                                "Đạt" -> Color(0xFFF57F17)
+                                                else -> Color(0xFFC62828)
+                                            },
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer
+                                    ) {
+                                        Text(
+                                            text = "ĐTB: %.1f".format(uiState.gpa),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
                             }
                             IconButton(onClick = onNavigateToTheHocSinh) {
                                 Icon(
@@ -206,29 +251,29 @@ fun ParentDashboardScreen(
                                 isGeneratingPdf = true
                                 val pdfData = StudentPdfReportData(
                                     studentName = uiState.studentName,
-                                    studentId = "HS01",
+                                    studentId = uiState.studentId,
                                     className = uiState.className,
                                     teacherName = "Nguyễn Văn Trọng",
                                     subjects = uiState.subjectScores.map { item ->
                                         PdfSubjectScore(
                                             subjectName = item.tenMonHoc,
-                                            diemTX = "8.0, 8.5",
-                                            diemGK = "8.0",
-                                            diemCK = "${item.diemTB}",
-                                            diemTB = "${item.diemTB}",
-                                            nhanXet = item.danhGia
+                                            diemTX = item.diemTX.joinToString(", "),
+                                            diemGK = item.diemGK?.let { "%.1f".format(it) } ?: "N/A",
+                                            diemCK = item.diemCK?.let { "%.1f".format(it) } ?: "N/A",
+                                            diemTB = "%.1f".format(item.diemTB),
+                                            nhanXet = item.nhanXet ?: "Đạt yêu cầu môn học"
                                         )
                                     },
-                                    overallGpa = 8.5f,
-                                    academicRank = "Giỏi",
+                                    overallGpa = uiState.gpa,
+                                    academicRank = uiState.academicRank,
                                     conduct = uiState.conduct
                                 )
                                 val pdfDoc = PdfReportHelper.generateGradeReportPdf(context, pdfData)
-                                val pdfFile = PdfExporter.exportAndSavePdf(context, pdfDoc, "PhieuLienLac_HS01.pdf")
+                                val pdfFile = PdfExporter.exportAndSavePdf(context, pdfDoc, "PhieuLienLac_${uiState.studentId}.pdf")
                                 isGeneratingPdf = false
                                 scope.launch {
                                     val result = snackbarHostState.showSnackbar(
-                                        message = "Đã xuất phiếu liên lạc PDF thành công!",
+                                        message = "Đã xuất phiếu liên lạc PDF cho học sinh ${uiState.studentName} thành công!",
                                         actionLabel = "Mở file",
                                         duration = SnackbarDuration.Long
                                     )
@@ -419,19 +464,21 @@ fun ParentDashboardScreen(
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     color = when (subject.danhGia) {
-                                        "Xuất sắc" -> Color(0xFFE8F5E9)
-                                        "Giỏi" -> Color(0xFFE3F2FD)
-                                        else -> Color(0xFFFFF8E1)
+                                        "Tốt" -> Color(0xFFE8F5E9)
+                                        "Khá" -> Color(0xFFE3F2FD)
+                                        "Đạt" -> Color(0xFFFFF8E1)
+                                        else -> Color(0xFFFFEBEE)
                                     }
                                 ) {
                                     Text(
-                                        text = "${subject.diemTB} • ${subject.danhGia}",
+                                        text = "%.1f • %s".format(subject.diemTB, subject.danhGia),
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
                                         color = when (subject.danhGia) {
-                                            "Xuất sắc" -> Color(0xFF2E7D32)
-                                            "Giỏi" -> Color(0xFF1565C0)
-                                            else -> Color(0xFFF57F17)
+                                            "Tốt" -> Color(0xFF2E7D32)
+                                            "Khá" -> Color(0xFF1565C0)
+                                            "Đạt" -> Color(0xFFF57F17)
+                                            else -> Color(0xFFC62828)
                                         },
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                     )

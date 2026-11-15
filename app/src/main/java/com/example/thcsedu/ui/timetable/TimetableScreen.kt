@@ -42,7 +42,12 @@ fun TimetableScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Thời Khóa Biểu - Lớp $maLop", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = if (uiState.studentName != null) "TKB ${uiState.studentName} (Lớp ${uiState.maLop})" else "Thời Khóa Biểu - Lớp ${uiState.maLop}",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Trở về")

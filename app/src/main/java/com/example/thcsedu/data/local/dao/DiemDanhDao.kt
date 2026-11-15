@@ -17,6 +17,13 @@ interface DiemDanhDao {
     """)
     fun getDiemDanhByLopAndDate(maLop: String, ngay: String): Flow<List<DiemDanhEntity>>
 
+    @Query("""
+        SELECT diem_danh.* FROM diem_danh 
+        INNER JOIN hoc_sinh ON diem_danh.maHocSinh = hoc_sinh.maHocSinh 
+        WHERE hoc_sinh.maLop = :maLop
+    """)
+    fun getAllDiemDanhByLop(maLop: String): Flow<List<DiemDanhEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateDiemDanhList(diemDanhList: List<DiemDanhEntity>)
 

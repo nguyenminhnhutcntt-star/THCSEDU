@@ -3,6 +3,7 @@ package com.example.thcsedu.ui.auth
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
@@ -13,20 +14,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.thcsedu.R
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (UserRole) -> Unit,
     onForgotPasswordClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var expanded by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -56,33 +57,41 @@ fun LoginScreen(
             Text(
                 text = "THCSEDU Portal",
                 style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(32.dp))
+            Text(
+                text = "Sổ Liên Lạc & Quản Lý Giáo Dục THCS",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(28.dp))
 
             // Username
             OutlinedTextField(
                 value = uiState.username,
                 onValueChange = viewModel::onUsernameChanged,
-                label = { Text("Username") },
+                label = { Text("Tên đăng nhập") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Password
             OutlinedTextField(
                 value = uiState.password,
                 onValueChange = viewModel::onPasswordChanged,
-                label = { Text("Password") },
+                label = { Text("Mật khẩu") },
                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Forgot Password Button
             Row(
@@ -94,54 +103,29 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Role Dropdown
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
-                    value = uiState.selectedRole.displayName,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Role") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
+            if (uiState.errorMessage != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    UserRole.entries.forEach { role ->
-                        DropdownMenuItem(
-                            text = { Text(role.displayName) },
-                            onClick = {
-                                viewModel.onRoleChanged(role)
-                                expanded = false
-                            }
-                        )
-                    }
+                    Text(
+                        text = uiState.errorMessage ?: "",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(12.dp)
+                    )
                 }
             }
 
-            if (uiState.errorMessage != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = uiState.errorMessage ?: "",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = { viewModel.login(onSuccess = onLoginSuccess) },
                 enabled = !uiState.isLoading,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
@@ -152,8 +136,35 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Login", style = MaterialTheme.typography.titleMedium)
+                    Text("Đăng nhập", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Quick login helpers for demonstration
+            Text(
+                text = "Tài khoản kiểm thử nhanh (Mật khẩu: 123456):",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = uiState.username == "teacher",
+                    onClick = { viewModel.quickFill("teacher", "123456") },
+                    label = { Text("GV Trọng (teacher)", fontSize = 11.sp) },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    selected = uiState.username == "parent",
+                    onClick = { viewModel.quickFill("parent", "123456") },
+                    label = { Text("PH em An (parent)", fontSize = 11.sp) },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }

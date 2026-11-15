@@ -34,6 +34,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.AdminPanelSettings
+
 data class TeacherMenuFeature(
     val title: String,
     val description: String,
@@ -55,6 +58,8 @@ fun TeacherDashboard(
     onNavigateToThongBao: () -> Unit,
     onNavigateToChat: () -> Unit,
     onNavigateToQuetMaQr: () -> Unit,
+    onNavigateToQuanLyTruongHoc: () -> Unit = {},
+    onNavigateToBaoCaoThongKe: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -65,6 +70,20 @@ fun TeacherDashboard(
     }
 
     val features = listOf(
+        TeacherMenuFeature(
+            title = "Báo Cáo Thống Kê",
+            description = "Chuyên cần, học lực, nề nếp",
+            icon = Icons.Default.Assessment,
+            gradientColors = listOf(Color(0xFF059669), Color(0xFF10B981)),
+            onClick = onNavigateToBaoCaoThongKe
+        ),
+        TeacherMenuFeature(
+            title = "Quản Trị Trường",
+            description = "Lớp, học sinh, môn, phân công",
+            icon = Icons.Default.AdminPanelSettings,
+            gradientColors = listOf(Color(0xFF7C3AED), Color(0xFF8B5CF6)),
+            onClick = onNavigateToQuanLyTruongHoc
+        ),
         TeacherMenuFeature(
             title = "Sổ Điểm",
             description = "Nhập & quản lý điểm",

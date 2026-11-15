@@ -22,9 +22,13 @@ import com.example.thcsedu.data.local.entity.*
         ThongBaoEntity::class,
         TinNhanEntity::class,
         ThucDonEntity::class,
-        SuatAnEntity::class
+        SuatAnEntity::class,
+        TaiKhoanEntity::class,
+        ThoiKhoaBieuEntity::class,
+        PhanCongGiaoVienEntity::class,
+        CheckInCongTruongEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -44,4 +48,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tinNhanDao(): TinNhanDao
     abstract fun thucDonDao(): ThucDonDao
     abstract fun suatAnDao(): SuatAnDao
+    abstract fun taiKhoanDao(): TaiKhoanDao
+    abstract fun thoiKhoaBieuDao(): ThoiKhoaBieuDao
+    abstract fun phanCongGiaoVienDao(): PhanCongGiaoVienDao
+    abstract fun checkInCongTruongDao(): CheckInCongTruongDao
 }

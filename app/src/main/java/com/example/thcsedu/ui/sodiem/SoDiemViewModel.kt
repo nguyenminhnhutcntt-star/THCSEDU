@@ -7,6 +7,8 @@ import com.example.thcsedu.data.local.entity.LichSuSuaDiemEntity
 import com.example.thcsedu.domain.repository.BangDiemRepository
 import com.example.thcsedu.domain.repository.LichSuSuaDiemRepository
 import com.example.thcsedu.domain.usecase.TinhDiemVaXepLoaiUseCase
+import com.example.thcsedu.ui.util.NotificationHelper
+import com.example.thcsedu.ui.util.ValidationUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +24,8 @@ import javax.inject.Inject
 class SoDiemViewModel @Inject constructor(
     private val repository: BangDiemRepository,
     private val lichSuSuaDiemRepository: LichSuSuaDiemRepository,
-    private val tinhDiemUseCase: TinhDiemVaXepLoaiUseCase
+    private val tinhDiemUseCase: TinhDiemVaXepLoaiUseCase,
+    private val notificationHelper: NotificationHelper? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SoDiemUiState())
@@ -108,9 +111,18 @@ class SoDiemViewModel @Inject constructor(
 
     fun updateDiemTX(maHocSinh: String, index: Int, value: Float) {
         if (_uiState.value.isGradeLocked) return
+        if (!ValidationUtil.isValidScore(value)) {
+            _uiState.update { it.copy(errorMessage = "Điểm đánh giá thường xuyên phải từ 0.0 đến 10.0") }
+            return
+        }
 
         val studentItem = _uiState.value.dsHocSinhDiem.find { it.maHocSinh == maHocSinh }
-        val oldVal = if (studentItem != null && index in studentItem.dsDiemTX.indices) {
+        if (studentItem == null) {
+            _uiState.update { it.copy(errorMessage = "Mã học sinh $maHocSinh không tồn tại") }
+            return
+        }
+
+        val oldVal = if (index in studentItem.dsDiemTX.indices) {
             studentItem.dsDiemTX[index]
         } else {
             null
@@ -178,9 +190,18 @@ class SoDiemViewModel @Inject constructor(
 
     fun updateDiemGK(maHocSinh: String, value: Float) {
         if (_uiState.value.isGradeLocked) return
+        if (!ValidationUtil.isValidScore(value)) {
+            _uiState.update { it.copy(errorMessage = "Điểm giữa kỳ phải từ 0.0 đến 10.0") }
+            return
+        }
 
         val studentItem = _uiState.value.dsHocSinhDiem.find { it.maHocSinh == maHocSinh }
-        val oldVal = studentItem?.diemGiuaKy
+        if (studentItem == null) {
+            _uiState.update { it.copy(errorMessage = "Mã học sinh $maHocSinh không tồn tại") }
+            return
+        }
+
+        val oldVal = studentItem.diemGiuaKy
 
         val applyAction = {
             _uiState.update { currentState ->
@@ -237,9 +258,18 @@ class SoDiemViewModel @Inject constructor(
 
     fun updateDiemCK(maHocSinh: String, value: Float) {
         if (_uiState.value.isGradeLocked) return
+        if (!ValidationUtil.isValidScore(value)) {
+            _uiState.update { it.copy(errorMessage = "Điểm cuối kỳ phải từ 0.0 đến 10.0") }
+            return
+        }
 
         val studentItem = _uiState.value.dsHocSinhDiem.find { it.maHocSinh == maHocSinh }
-        val oldVal = studentItem?.diemCuoiKy
+        if (studentItem == null) {
+            _uiState.update { it.copy(errorMessage = "Mã học sinh $maHocSinh không tồn tại") }
+            return
+        }
+
+        val oldVal = studentItem.diemCuoiKy
 
         val applyAction = {
             _uiState.update { currentState ->
@@ -313,6 +343,18 @@ class SoDiemViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repository.saveBangDiemList(entities)
+
+                // Gửi thông báo đẩy khi có điểm mới
+                currentState.dsHocSinhDiem.forEach { student ->
+                    val avg = student.diemTBMon ?: student.diemCuoiKy ?: student.diemGiuaKy
+                    if (avg != null) {
+                        notificationHelper?.notifyDiemMoi(
+                            studentName = student.hoTen,
+                            subjectName = currentState.currentMaMonHoc,
+                            score = avg
+                        )
+                    }
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(errorMessage = e.localizedMessage ?: "Failed to save bang diem")
